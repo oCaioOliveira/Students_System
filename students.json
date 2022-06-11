@@ -5,5 +5,12 @@
          "district":"Via Cauã Rezende",
          "city":"Rio de Janeiro",
          "postal-code":"83392-182"
+     },
+     {
+        "id":2,
+         "name":"Caio Cesar",
+         "district":"Taguatinga",
+         "city":"Brasília",
+         "postal-code":"72135-190"
      }
  ]

@@ -27,14 +27,29 @@ def get_all_students() -> List[Dict[str, Union[float, int, str]]]:
 
 
 @app.get("/students/{student_id}/")
-def get_student_with_id(
-    student_id: int
-) -> Dict[str, Union[float, int, str]]:
-    if response := list(
-        filter(lambda i: i.get("id") == student_id, students)
-    )[0]:
-        return response
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Estudante de 'id={student_id}' não encontrado."
-    )
+def get_student_with_id(student_id: int) -> Dict[str, Union[float, int, str]]:
+    try:
+        if response := list(
+            filter(lambda i: i.get("id") == student_id, students)
+        )[0]:
+            return response
+    except IndexError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Estudante de 'id={student_id}' não encontrado."
+        )
+
+
+@app.delete("/students/{student_id}/")
+def delete_student(student_id: int) -> Dict[str, bool]:
+    try:
+        if response := list(
+            filter(lambda i: i.get("id") == student_id, students)
+        )[0]:
+            del students[students.index(response)]
+            return {"success": True}
+    except IndexError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Estudante de 'id={student_id}' não encontrado",
+        )
