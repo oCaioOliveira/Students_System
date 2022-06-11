@@ -1,12 +1,43 @@
+from email.generator import Generator
 from typing import Dict, List, Optional, Union
-from fastapi import FastAPI, HTTPException, status
+from fastapi import(
+    Depends,
+    FastAPI, 
+    HTTPException,
+    Response, 
+    status
+)
+from sqlalchemy.orm import Session
+from crud import(
+    create_student, 
+    remove_student,
+    retrieve_all_students,
+    retrieve_student_with_id,
+    update_student,
+)
+from database import Base, SessionLocal, engine
+from datatypes import StudentType, StudentListType
 from datetime import datetime
 import json
-from schemas import CreateStudentSchema, UpdateStudentSchema
+from schemas import(
+    CreateStudentSchema,
+    StudentSchema,
+    UpdateStudentSchema,
+)
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
 students = json.load(open("students.json", "r"))
+
+def get_db() -> Generator:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 @app.get("/")
 def welcome() -> str:
@@ -18,77 +49,53 @@ def alive() -> Dict[str, datetime]:
     return {"timestamp": datetime.now()}
 
 
-@app.get("/students/")
-def get_all_students() -> List[Dict[str, Union[float, int, str]]]:
-    if response := students:
-        return response
+@app.get("/students/", status_code=status.HTTP_200_OK,)
+def get_all_students(db: Session = Depends(get_db)) -> Generator:
+    if result := retrieve_all_students(db):
+        return result
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Não existem estudantes cadastrados."
     )
 
 
-@app.get("/students/{student_id}/")
-def get_student_with_id(student_id: int) -> Dict[str, Union[float, int, str]]:
-    try:
-        if response := list(
-            filter(lambda i: i.get("id") == student_id, students)
-        )[0]:
-            return response
-    except IndexError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Estudante de 'id={student_id}' não encontrado."
-        )
+@app.get("/students/{student_id}/", status_code=status.HTTP_200_OK,)
+def get_student_with_id(student_id: int, db: Session = Depends(get_db)) -> StudentType:
+    if result := retrieve_student_with_id(db, student_id):
+        return result
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Estudante de 'id={student_id}' não encontrado."
+    )
 
 
-@app.delete("/students/{student_id}/")
-def delete_student(student_id: int) -> Dict[str, bool]:
-    try:
-        if response := list(
-            filter(lambda i: i.get("id") == student_id, students)
-        )[0]:
-            del students[students.index(response)]
-            return {"success": True}
-    except IndexError:
+@app.delete("/students/{student_id}/", status_code=status.HTTP_204_NO_CONTENT)
+def delete_student(student_id: int, db: Session = Depends(get_db)) -> None:
+    if not remove_student(db, student_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Estudante de 'id={student_id}' não encontrado",
         )
 
-    
-def get_max() -> int:
-    max_student = max(students, key=lambda i: i.get("id", 0))
-    return max_student.get("id", 0)
 
-
-@app.post("/students/")
-def post_student(student: CreateStudentSchema) -> Dict[str, Union[float, int, str]]:
-    students.append(
-        new_student := {**{"id": get_max() + 1}, **student.dict()}
+@app.post("/students/", status_code=status.HTTP_201_CREATED,)
+def post_student(student: CreateStudentSchema, db: Session = Depends(get_db),) -> StudentType:
+    if result := create_student(db, student):
+        return result
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST
     )
-    return new_student
 
 
-def retrieve_student(student_id: int):
-    try:
-        if response := list(
-            filter(lambda i: i.get("id") == student_id, students)
-        )[0]:
-            return response
-    except IndexError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Estudante de 'id={student_id}' não encontrado."
-        )
-
-
-@app.put("/students/{student_id}")
-def put_student(student_id: int, student: UpdateStudentSchema) -> Dict[str, Union[float, int, str]]:
-    if old_student := retrieve_student(student_id):
-        updated_student = {
-            **old_student,
-            **{key: value for key, value in student if value},
-        }
-    students[students.index(old_student)] = updated_student
-    return updated_student  
+@app.put("/students/{student_id}", status_code=status.HTTP_201_CREATED)
+def put_student(student_id: int, student: UpdateStudentSchema, db: Session = Depends(get_db)) -> StudentType:
+    if result := update_student(
+        db, student_id, {
+            key: value for key, value in student if value
+        },
+    ):
+        return result
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, 
+        detail=f"Estudante de 'id={student_id}' não encontrado.",
+    )

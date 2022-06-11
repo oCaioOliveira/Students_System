@@ -32,7 +32,7 @@ def update_student(
     if student := retrieve_student_with_id(db, student_id):
         db.query(students).filter(
             students.id == student_id
-        ).uptade(values)
+        ).update(values)
         db.commit()
         db.refresh(student)
         return student
