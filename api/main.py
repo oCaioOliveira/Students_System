@@ -29,8 +29,6 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-students = json.load(open("students.json", "r"))
-
 def get_db() -> Generator:
     db = SessionLocal()
     try:
@@ -69,7 +67,7 @@ def get_student_with_id(student_id: int, db: Session = Depends(get_db)) -> Stude
     )
 
 
-@app.delete("/students/{student_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/students/{student_id}/", status_code=status.HTTP_204_NO_CONTENT,)
 def delete_student(student_id: int, db: Session = Depends(get_db)) -> None:
     if not remove_student(db, student_id):
         raise HTTPException(
